@@ -27,3 +27,4 @@ This project demonstrates how data engineers and analysts process structured dat
 pip install -r requirements.txt
 python -m streamlit run app.py
 🌍 Live Demo
+https://netflix-project-shristiee.streamlit.app/
