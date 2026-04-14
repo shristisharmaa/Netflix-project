@@ -5,80 +5,107 @@ import sqlite3
 st.set_page_config(page_title="Netflix Analytics", layout="wide")
 st.title("📊 Netflix Media Analytics Pipeline")
 
-# File Upload
+# ---------------- FILE UPLOAD ----------------
 file = st.file_uploader("Upload Netflix CSV", type=["csv"])
 
 if file is not None:
-    df = pd.read_csv(file)
 
-    st.subheader("📌 Raw Data")
-    st.dataframe(df)
+    try:
+        df = pd.read_csv(file)
 
-    # Show columns (for debugging / understanding)
-    st.write("Columns in dataset:", df.columns)
+        # ----------- VALIDATION -----------
+        if df.empty:
+            st.error("Uploaded file is empty ❌")
+            st.stop()
 
-    # ---------------- LOAD TO SQLITE ----------------
-    conn = sqlite3.connect("netflix.db")
-    df.to_sql("netflix", conn, if_exists="replace", index=False)
+        st.subheader("📌 Raw Data")
+        st.dataframe(df)
 
-    st.success("Data loaded into database ✅")
+        # ----------- BASIC CLEANING -----------
+        df = df.drop_duplicates()
+        df = df.fillna("Unknown")
 
-    # Detect correct genre column
-    if "genre" in df.columns:
-        genre_col = "genre"
-    elif "listed_in" in df.columns:
-        genre_col = "listed_in"
-    else:
-        genre_col = df.columns[1]  # fallback
+        # Convert date column if exists
+        if "date_added" in df.columns:
+            df["date_added"] = pd.to_datetime(df["date_added"], errors='coerce')
 
-    # ---------------- SQL QUERIES ----------------
-    st.markdown("---")
-    st.subheader("📊 Insights (SQL)")
+        st.subheader("🧹 Cleaned Data")
+        st.dataframe(df)
 
-    # Top Genres
-    if st.button("Top Genres"):
-        query = f"""
-        SELECT {genre_col}, COUNT(*) as count
-        FROM netflix
-        GROUP BY {genre_col}
-        ORDER BY count DESC;
-        """
-        result = pd.read_sql_query(query, conn)
-        st.dataframe(result)
+        # ---------------- LOAD TO SQLITE ----------------
+        conn = sqlite3.connect("netflix.db")
+        df.to_sql("netflix", conn, if_exists="replace", index=False)
 
-    # Top Rated Movies/Shows
-    if st.button("Top Rated Content"):
-        query = """
-        SELECT title, rating
-        FROM netflix
-        ORDER BY rating DESC
-        LIMIT 5;
-        """
-        result = pd.read_sql_query(query, conn)
-        st.dataframe(result)
+        st.success("Data loaded into database ✅")
 
-    # Content per Year
-    if st.button("Content per Year"):
-        query = """
-        SELECT release_year, COUNT(*) as total
-        FROM netflix
-        GROUP BY release_year
-        ORDER BY total DESC;
-        """
-        result = pd.read_sql_query(query, conn)
-        st.dataframe(result)
+        # ----------- DETECT GENRE COLUMN -----------
+        if "genre" in df.columns:
+            genre_col = "genre"
+        elif "listed_in" in df.columns:
+            genre_col = "listed_in"
+        else:
+            genre_col = df.columns[1]
 
-    # ---------------- CUSTOM SQL ----------------
-    st.markdown("---")
-    st.subheader("🧠 Custom SQL Query")
+        # ---------------- SQL INSIGHTS ----------------
+        st.markdown("---")
+        st.subheader("📊 Insights (SQL + Visualization)")
 
-    query_input = st.text_area("Write SQL query (table name: netflix)")
-
-    if st.button("Run Query"):
-        try:
-            result = pd.read_sql_query(query_input, conn)
+        # Top Genres
+        if st.button("Top Genres"):
+            query = f"""
+            SELECT {genre_col} as genre, COUNT(*) as count
+            FROM netflix
+            GROUP BY genre
+            ORDER BY count DESC;
+            """
+            result = pd.read_sql_query(query, conn)
             st.dataframe(result)
-        except Exception as e:
-            st.error(f"Error: {e}")
 
-    conn.close()
+            # Visualization
+            st.bar_chart(result.set_index("genre"))
+
+        # Top Rated Content
+        if st.button("Top Rated Content"):
+            query = """
+            SELECT title, rating
+            FROM netflix
+            ORDER BY rating DESC
+            LIMIT 5;
+            """
+            result = pd.read_sql_query(query, conn)
+            st.dataframe(result)
+
+        # Content per Year
+        if st.button("Content per Year"):
+            query = """
+            SELECT release_year, COUNT(*) as total
+            FROM netflix
+            GROUP BY release_year
+            ORDER BY total DESC;
+            """
+            result = pd.read_sql_query(query, conn)
+            st.dataframe(result)
+
+            # Visualization
+            st.bar_chart(result.set_index("release_year"))
+
+        # ---------------- CUSTOM SQL ----------------
+        st.markdown("---")
+        st.subheader("🧠 Custom SQL Query")
+
+        st.info("👉 Run queries on table: netflix")
+
+        query_input = st.text_area("Write SQL query")
+
+        if st.button("Run Query"):
+            try:
+                result = pd.read_sql_query(query_input, conn)
+                st.dataframe(result)
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+        conn.close()
+
+    except Exception as e:
+        st.error("Invalid file format ❌")
+        st.write(e)
