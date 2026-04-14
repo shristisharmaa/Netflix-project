@@ -1,7 +1,7 @@
 📊 Netflix Media Analytics Pipeline
 
 This project is an end-to-end data analytics pipeline built using Python, SQL, and Streamlit.
-
+ 
 It allows users to upload a Netflix dataset, process the data, store it in a database, and perform SQL-based analysis to extract meaningful insights.
 
 🚀 Features
