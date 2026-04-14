@@ -21,6 +21,9 @@ if file is not None:
         st.subheader("📌 Raw Data")
         st.dataframe(df)
 
+        # Show columns for debugging
+        st.write("📊 Available Columns:", df.columns.tolist())
+
         # ----------- BASIC CLEANING -----------
         df = df.drop_duplicates()
         df = df.fillna("Unknown")
@@ -50,44 +53,55 @@ if file is not None:
         st.markdown("---")
         st.subheader("📊 Insights (SQL + Visualization)")
 
-        # Top Genres
+        # ----------- TOP GENRES -----------
         if st.button("Top Genres"):
-            query = f"""
-            SELECT {genre_col} as genre, COUNT(*) as count
-            FROM netflix
-            GROUP BY genre
-            ORDER BY count DESC;
-            """
-            result = pd.read_sql_query(query, conn)
-            st.dataframe(result)
+            try:
+                query = f"""
+                SELECT {genre_col} as genre, COUNT(*) as count
+                FROM netflix
+                GROUP BY genre
+                ORDER BY count DESC;
+                """
+                result = pd.read_sql_query(query, conn)
+                st.dataframe(result)
+                st.bar_chart(result.set_index("genre"))
+            except Exception as e:
+                st.error(f"Error: {e}")
 
-            # Visualization
-            st.bar_chart(result.set_index("genre"))
-
-        # Top Rated Content
+        # ----------- TOP RATED CONTENT -----------
         if st.button("Top Rated Content"):
-            query = """
-            SELECT title, rating
-            FROM netflix
-            ORDER BY rating DESC
-            LIMIT 5;
-            """
-            result = pd.read_sql_query(query, conn)
-            st.dataframe(result)
+            try:
+                if "rating" in df.columns:
+                    query = """
+                    SELECT title, rating
+                    FROM netflix
+                    ORDER BY rating DESC
+                    LIMIT 5;
+                    """
+                    result = pd.read_sql_query(query, conn)
+                    st.dataframe(result)
+                else:
+                    st.error("Column 'rating' not found ❌")
+            except Exception as e:
+                st.error(f"Error: {e}")
 
-        # Content per Year
+        # ----------- CONTENT PER YEAR -----------
         if st.button("Content per Year"):
-            query = """
-            SELECT release_year, COUNT(*) as total
-            FROM netflix
-            GROUP BY release_year
-            ORDER BY total DESC;
-            """
-            result = pd.read_sql_query(query, conn)
-            st.dataframe(result)
-
-            # Visualization
-            st.bar_chart(result.set_index("release_year"))
+            try:
+                if "release_year" in df.columns:
+                    query = """
+                    SELECT release_year, COUNT(*) as total
+                    FROM netflix
+                    GROUP BY release_year
+                    ORDER BY total DESC;
+                    """
+                    result = pd.read_sql_query(query, conn)
+                    st.dataframe(result)
+                    st.bar_chart(result.set_index("release_year"))
+                else:
+                    st.error("Column 'release_year' not found ❌")
+            except Exception as e:
+                st.error(f"Error: {e}")
 
         # ---------------- CUSTOM SQL ----------------
         st.markdown("---")
@@ -107,5 +121,4 @@ if file is not None:
         conn.close()
 
     except Exception as e:
-        st.error("Invalid file format ❌")
-        st.write(e)
+        st.error(f"File Error: {e}")
